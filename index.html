@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Didomi – US Implementation Check</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+  ═══════════════════════════════════════
+  DIDOMI US IMPLEMENTATION CHECKLIST
+  Planhat Portal Edition
+  ─────────────────────────────────────
+  • URL params auto-fill header fields:
+    ?client=Acme&url=https://acme.com
+    &reviewer=Pat&date=2026-02-26
+  • Compact top bar (no double navbar)
+  • Works standalone OR inside iFrame
+  • All state saved per browser session
+    via localStorage (key = client name)
+  ═══════════════════════════════════════
+*/
+:root {
+  --blue:        #4361EE;
+  --blue-d:      #3451D1;
+  --blue-lt:     #EEF1FD;
+  --blue-mid:    #C7D0FA;
+  --navy:        #0A0A1A;
+  --text:        #1A1A2E;
+  --text-2:      #4B5563;
+  --muted:       #9CA3AF;
+  --gh:          #092424;
+  --gm:          #0D1A4A;
+  --ge:          #1A0A3E;
+  --green:       #10B981;
+  --green-lt:    #ECFDF5;
+  --red:         #EF4444;
+  --red-lt:      #FEF2F2;
+  --amber:       #F59E0B;
+  --amber-lt:    #FFFBEB;
+  --bg:          #F9FAFB;
+  --surface:     #FFFFFF;
+  --border:      #E5E7EB;
+  --border-2:    #D1D5DB;
+  --font:        'Inter', -apple-system, sans-serif;
+  --mono:        'JetBrains Mono', monospace;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-pill: 999px;
+  --sx: 0 1px 2px rgba(10,10,26,.05);
+  --sm: 0 1px 6px rgba(10,10,26,.08);
+  --md: 0 4px 16px rgba(10,10,26,.10);
+  --lg: 0 12px 40px rgba(10,10,26,.14);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  font-size:14px;
+  /* When inside Planhat iFrame: no extra chrome needed */
+}
+
+/* ──────────────────────────────
+   COMPACT HEADER STRIP
+   Replaces full navbar — fits
+   cleanly in Planhat portal
+────────────────────────────── */
+.header-strip {
+  background: linear-gradient(135deg, var(--gh) 0%, var(--gm) 52%, var(--ge) 100%);
+  padding: 16px 24px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.header-strip::before {
+  content:'';position:absolute;width:400px;height:400px;
+  right:-80px;top:-140px;border-radius:50%;
+  background:radial-gradient(circle,rgba(67,97,238,.13) 0%,transparent 65%);
+  pointer-events:none;
+}
+.header-strip::after {
+  content:'';position:absolute;width:260px;height:260px;
+  left:25%;bottom:-90px;border-radius:50%;
+  background:radial-gradient(circle,rgba(16,185,129,.08) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+.hs-inner {
+  position:relative;z-index:1;
+  display:flex;align-items:center;
+  justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+}
+
+.hs-brand {
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.hs-logo {
+  font-family:var(--font);font-weight:900;font-size:17px;
+  letter-spacing:1.5px;color:#fff;text-transform:uppercase;
+  line-height:1;user-select:none;
+}
+.hs-divider {width:1px;height:18px;background:rgba(255,255,255,.18);}
+.hs-title {
+  font-size:12px;font-weight:500;
+  color:rgba(255,255,255,.55);
+  letter-spacing:.02em;
+}
+
+/* Meta fields — compact, read-only in Planhat (pre-filled by URL params) */
+.hs-meta {
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1;
+}
+.hfield {
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:var(--r-md);
+  padding:6px 12px;
+  display:flex;flex-direction:column;gap:3px;
+  min-width:130px;
+  transition:all .2s;
+}
+.hfield:focus-within{
+  border-color:rgba(67,97,238,.55);
+  background:rgba(67,97,238,.09);
+}
+.hfield label{
+  font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.13em;text-transform:uppercase;
+  color:rgba(255,255,255,.37);
+}
+.hfield input{
+  background:transparent;border:none;outline:none;
+  font-family:var(--font);font-size:12px;font-weight:500;
+  color:#fff;width:100%;
+}
+.hfield input::placeholder{color:rgba(255,255,255,.22);}
+
+/* Progress in header */
+.hs-progress {
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.hs-bar {width:80px;height:4px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden;}
+.hs-fill {height:100%;background:var(--blue);border-radius:4px;transition:width .4s ease;width:0%;}
+.hs-label {font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;}
+
+/* Disclaimer — collapsible to save space in portal */
+.disclaimer-row {
+  margin-top:10px;position:relative;z-index:1;
+  display:flex;align-items:flex-start;gap:8px;
+}
+.disclaimer-text {
+  font-size:11px;color:rgba(255,255,255,.4);
+  line-height:1.55;
+}
+.disclaimer-text strong{color:rgba(255,255,255,.72);}
+
+/* ──────────────────────────────
+   TOOLBAR
+────────────────────────────── */
+.toolbar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:8px 24px;
+  display:flex;gap:7px;align-items:center;
+  flex-wrap:wrap;
+  box-shadow:var(--sx);
+  position:sticky;top:0;z-index:100;
+}
+.toolbar-date{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+.btn {
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 14px;border-radius:var(--r-pill);
+  font-family:var(--font);font-size:12px;font-weight:600;
+  cursor:pointer;border:none;
+  transition:all .18s ease;white-space:nowrap;
+}
+.btn-primary{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(67,97,238,.28);}
+.btn-primary:hover{background:var(--blue-d);transform:translateY(-1px);}
+.btn-ghost{background:#fff;color:var(--text);border:1.5px solid var(--border-2);}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:hover{background:#0EA472;transform:translateY(-1px);}
+
+/* ──────────────────────────────
+   SCOPE BAR
+────────────────────────────── */
+.scope-bar {
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:7px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.scope-lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:var(--mono);}
+.scope-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 10px;border-radius:var(--r-pill);}
+.sp-eu{background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;}
+.sp-us{background:var(--blue-lt);color:var(--blue-d);border:1px solid var(--blue-mid);}
+
+/* ──────────────────────────────
+   MAIN
+────────────────────────────── */
+main{max-width:860px;margin:20px auto;padding:0 16px 80px;}
+
+/* ──────────────────────────────
+   STATS
+────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr) 2fr;gap:10px;margin-bottom:20px;}
+@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:14px 18px 12px;
+  box-shadow:var(--sx);transition:box-shadow .2s,transform .2s;
+  display:flex;flex-direction:column;gap:3px;
+}
+.stat-card:hover{box-shadow:var(--md);transform:translateY(-1px);}
+.stat-num{font-size:30px;font-weight:800;line-height:1;letter-spacing:-1.5px;color:var(--navy);}
+.stat-num.sg{color:var(--green);}
+.stat-num.sr{color:var(--red);}
+.stat-num.sm{color:var(--muted);}
+.stat-lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.stat-hero{background:linear-gradient(135deg,var(--gh),var(--gm) 55%,var(--ge));border-color:transparent;position:relative;overflow:hidden;}
+.stat-hero::after{content:'';position:absolute;right:-20px;top:-20px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(67,97,238,.18) 0%,transparent 70%);}
+.stat-hero .stat-num{color:#fff;font-size:26px;}
+.stat-hero .stat-lbl{color:rgba(255,255,255,.4);}
+.hero-bar{height:3px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;margin-top:8px;}
+.hero-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .4s ease;width:0%;}
+
+/* ──────────────────────────────
+   SECTIONS
+────────────────────────────── */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:10px;overflow:hidden;box-shadow:var(--sx);transition:box-shadow .2s;}
+.section:hover{box-shadow:var(--sm);}
+.section-header{padding:13px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;background:var(--surface);transition:background .15s;}
+.section-header:hover{background:var(--bg);}
+.section-cat{font-size:10.5px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;padding:2px 9px;background:var(--blue-lt);border-radius:var(--r-pill);white-space:nowrap;flex-shrink:0;}
+.section-cat.amber{color:#92400E;background:var(--amber-lt);}
+.section-title-wrap{flex:1;}
+.section-title{font-size:13.5px;font-weight:700;color:var(--navy);letter-spacing:-.2px;}
+.section-sub{font-size:10.5px;color:var(--muted);margin-top:2px;font-family:var(--mono);}
+.section-count{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 9px;border-radius:var(--r-pill);white-space:nowrap;}
+.chevron{color:var(--muted);font-size:11px;transition:transform .22s ease;}
+.section.collapsed .chevron{transform:rotate(-90deg);}
+.section.collapsed .section-body,.section.collapsed .section-notes{display:none;}
+
+/* ──────────────────────────────
+   ITEMS
+────────────────────────────── */
+.item{border-bottom:1px solid var(--border);}
+.item:last-child{border-bottom:none;}
+.item-main{display:flex;align-items:flex-start;gap:12px;padding:14px 20px;transition:background .12s;}
+.item:hover>.item-main{background:#FAFBFF;}
+.item.checked>.item-main{background:var(--green-lt);}
+.item.flagged>.item-main{background:var(--red-lt);}
+.item.na-item{opacity:.48;}
+.item.na-item>.item-main{background:var(--bg);}
+
+.check-col{display:flex;flex-direction:column;align-items:center;gap:5px;padding-top:2px;flex-shrink:0;}
+input[type="checkbox"]{width:17px;height:17px;cursor:pointer;accent-color:var(--blue);}
+.status-select{font-family:var(--mono);font-size:10px;border:1px solid var(--border-2);border-radius:var(--r-sm);padding:2px 4px;color:var(--text-2);background:var(--surface);cursor:pointer;outline:none;max-width:66px;}
+.status-select:focus{border-color:var(--blue);}
+
+.item-body{flex:1;min-width:0;}
+.item-top{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+.item-num{font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--blue);background:var(--blue-lt);padding:2px 8px;border-radius:var(--r-sm);white-space:nowrap;letter-spacing:.05em;flex-shrink:0;margin-top:2px;}
+.item-title{font-size:13px;font-weight:600;color:var(--navy);line-height:1.45;flex:1;letter-spacing:-.1px;}
+.item.checked .item-title{color:var(--muted);text-decoration:line-through;}
+
+.regs-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;}
+.reg-badge{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:var(--r-sm);}
+.rb-eu{background:#EEF2FF;color:#3730A3;}
+.rb-us{background:var(--blue-lt);color:var(--blue-d);}
+.rb-both{background:var(--green-lt);color:#065F46;}
+.rb-na{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+
+.item-desc{font-size:12px;color:var(--text-2);line-height:1.65;margin-bottom:5px;}
+.links-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.doc-link{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--blue);text-decoration:none;background:var(--blue-lt);padding:2px 10px;border-radius:var(--r-pill);font-weight:500;transition:all .15s;border:1px solid var(--blue-mid);}
+.doc-link:hover{background:var(--blue-mid);}
+
+.callout{margin-top:9px;padding:9px 13px;border-radius:var(--r-md);font-size:11.5px;line-height:1.65;}
+.callout-amber{background:var(--amber-lt);border-left:3px solid var(--amber);color:#78350F;}
+.callout-blue{background:var(--blue-lt);border-left:3px solid var(--blue);color:#1E3A8A;}
+.callout-red{background:var(--red-lt);border-left:3px solid var(--red);color:#991B1B;}
+
+/* ──────────────────────────────
+   ANNOTATION TOGGLE
+────────────────────────────── */
+.ann-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-top:10px;padding:5px 13px;
+  border-radius:var(--r-pill);border:1.5px dashed var(--border-2);
+  background:transparent;color:var(--muted);
+  font-family:var(--font);font-size:11.5px;font-weight:500;
+  cursor:pointer;transition:all .18s;
+}
+.ann-btn:hover,.ann-btn.active{border-style:solid;border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+
+/* ──────────────────────────────
+   ANNOTATION PANEL
+────────────────────────────── */
+.item-annotation{display:none;background:#F8FAFF;border-top:1px solid var(--border);padding:14px 20px 16px;}
+.item-annotation.open{display:block;}
+.item.checked .item-annotation{background:#F0FEF9;}
+.item.flagged .item-annotation{background:#FFF8F8;}
+.ann-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:580px){.ann-grid{grid-template-columns:1fr;}}
+.ann-label{font-size:10.5px;font-weight:700;color:var(--text-2);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.ann-textarea{width:100%;min-height:72px;resize:vertical;border:1.5px solid var(--border-2);border-radius:var(--r-md);padding:9px 11px;font-family:var(--font);font-size:12.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .2s,box-shadow .2s;line-height:1.55;grid-column:1/-1;}
+.ann-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(67,97,238,.09);}
+.ann-textarea::placeholder{color:var(--muted);font-style:italic;font-size:12px;}
+
+/* ──────────────────────────────
+   SCREENSHOT UPLOAD
+────────────────────────────── */
+.upload-zone{border:2px dashed var(--border-2);border-radius:var(--r-md);padding:14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--surface);display:flex;align-items:center;justify-content:center;min-height:78px;}
+.upload-zone:hover,.upload-zone.over{border-color:var(--blue);background:var(--blue-lt);}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.uz-inner{display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none;}
+.uz-icon{width:30px;height:30px;background:var(--blue-lt);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid var(--blue-mid);}
+.uz-text{font-size:11.5px;font-weight:600;color:var(--text-2);}
+.uz-hint{font-size:10px;color:var(--muted);font-family:var(--mono);}
+
+.thumb-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;}
+.thumb{position:relative;width:84px;height:64px;border-radius:var(--r-md);overflow:hidden;border:1.5px solid var(--border);cursor:pointer;transition:all .15s;box-shadow:var(--sx);flex-shrink:0;}
+.thumb:hover{border-color:var(--blue);box-shadow:var(--md);transform:scale(1.05);}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb-del{position:absolute;top:3px;right:3px;width:17px;height:17px;background:rgba(10,10,26,.72);color:#fff;border:none;border-radius:50%;font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;}
+.thumb:hover .thumb-del{opacity:1;}
+.thumb-del:hover{background:var(--red);}
+
+/* ──────────────────────────────
+   LIGHTBOX
+────────────────────────────── */
+.lightbox{display:none;position:fixed;inset:0;background:rgba(5,5,20,.92);z-index:1000;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(8px);}
+.lightbox.open{display:flex;}
+.lightbox img{max-width:90vw;max-height:86vh;border-radius:var(--r-lg);box-shadow:0 40px 100px rgba(0,0,0,.7);}
+.lb-close{position:fixed;top:18px;right:22px;width:38px;height:38px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);color:#fff;font-size:16px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.lb-close:hover{background:var(--red);border-color:var(--red);}
+
+/* ──────────────────────────────
+   SECTION NOTES
+────────────────────────────── */
+.section-notes{padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--bg);}
+.notes-lbl{font-size:10.5px;font-weight:700;color:var(--text-2);margin-bottom:6px;}
+.section-notes textarea{width:100%;min-height:50px;resize:vertical;border:1.5px solid var(--border-2);border-radius:var(--r-md);padding:8px 11px;font-family:var(--font);font-size:12.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .2s,box-shadow .2s;line-height:1.5;}
+.section-notes textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(67,97,238,.09);}
+.section-notes textarea::placeholder{color:var(--muted);font-style:italic;font-size:12px;}
+
+/* ──────────────────────────────
+   TOAST
+────────────────────────────── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:10px 18px;border-radius:var(--r-lg);font-size:12.5px;font-weight:600;opacity:0;transform:translateY(10px);transition:all .3s ease;pointer-events:none;z-index:500;box-shadow:var(--lg);border-left:3px solid var(--blue);}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* ──────────────────────────────
+   PLANHAT EMBED NOTICE
+   Shown only when in an iFrame
+────────────────────────────── */
+.embed-notice{
+  display:none; /* JS will show if in iframe */
+  background:var(--blue-lt);
+  border-bottom:1px solid var(--blue-mid);
+  padding:7px 24px;
+  font-size:11px;
+  color:var(--blue-d);
+  font-weight:500;
+  text-align:center;
+}
+.embed-notice a{color:var(--blue);font-weight:700;text-decoration:none;}
+.embed-notice a:hover{text-decoration:underline;}
+
+/* ──────────────────────────────
+   PRINT
+────────────────────────────── */
+@media print{
+  .toolbar,.scope-bar,.ann-btn,.upload-zone,.lightbox,.embed-notice{display:none!important;}
+  .item-annotation{display:block!important;}
+  .thumb-row{display:flex!important;}
+  main{max-width:100%;padding:12px;margin:0;}
+  .section{break-inside:avoid;box-shadow:none;border-radius:0;}
+  body{background:#fff;}
+}
+
+@media(max-width:600px){
+  .header-strip,.toolbar,.scope-bar{padding-left:14px;padding-right:14px;}
+  main{padding:0 10px 60px;}
+  .item-main{padding:12px 14px;}
+  .section-header{padding:11px 14px;}
+  .hs-meta{gap:6px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     EMBED NOTICE (visible only in iFrame)
+═══════════════════════════════════════ -->
+<div class="embed-notice" id="embedNotice">
+  📌 Viewing inside Planhat · <a id="fullLink" href="#" target="_blank">Open full view ↗</a> to access all features
+</div>
+
+<!-- ═══════════════════════════════════════
+     COMPACT HEADER — Didomi gradient style
+═══════════════════════════════════════ -->
+<div class="header-strip">
+  <div class="hs-inner">
+    <div class="hs-brand">
+      <div class="hs-logo">DIDOMI</div>
+      <div class="hs-divider"></div>
+      <div class="hs-title">US Implementation Check</div>
+    </div>
+    <div class="hs-meta">
+      <div class="hfield"><label>Client / Account</label><input type="text" id="fClient" placeholder="Account name…"></div>
+      <div class="hfield"><label>URL checked</label><input type="text" id="fURL" placeholder="https://…"></div>
+      <div class="hfield"><label>Done by</label><input type="text" id="fDoneBy" placeholder="Your name…"></div>
+      <div class="hfield"><label>Date</label><input type="date" id="fDate"></div>
+    </div>
+    <div class="hs-progress">
+      <div class="hs-bar"><div class="hs-fill" id="progressFill"></div></div>
+      <div class="hs-label" id="progressLabel">0 / 0</div>
+    </div>
+  </div>
+  <div class="disclaimer-row">
+    <div class="disclaimer-text">⚠️ <strong>Disclaimer:</strong> Didomi is not responsible for the compliance of your website and only provides recommendations. Please check with your legal department.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     TOOLBAR
+═══════════════════════════════════════ -->
+<div class="toolbar">
+  <button class="btn btn-primary"  onclick="copyLink()">🔗 Copy link</button>
+  <button class="btn btn-ghost"    onclick="window.print()">⬇ Export PDF</button>
+  <button class="btn btn-success"  onclick="markAllOK()">✓ Mark all OK</button>
+  <button class="btn btn-ghost"    onclick="resetAll()">↺ Reset</button>
+  <div class="toolbar-date" id="toolbarDate"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCOPE BAR
+═══════════════════════════════════════ -->
+<div class="scope-bar">
+  <span class="scope-lbl">Applies to:</span>
+  <span class="scope-pill sp-eu">🇪🇺 GDPR</span>
+  <span class="scope-pill sp-us">🇺🇸 US Multi-state</span>
+</div>
+
+<main>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num sg" id="statOK">0</div><div class="stat-lbl">Validated ✅</div></div>
+    <div class="stat-card"><div class="stat-num sr" id="statKO">0</div><div class="stat-lbl">Issues ❌</div></div>
+    <div class="stat-card"><div class="stat-num sm" id="statNA">0</div><div class="stat-lbl">N/A</div></div>
+    <div class="stat-card"><div class="stat-num sm" id="statPend">0</div><div class="stat-lbl">Pending</div></div>
+    <div class="stat-card stat-hero">
+      <div class="stat-num" id="statPct">0%</div>
+      <div class="stat-lbl">Completion</div>
+      <div class="hero-bar"><div class="hero-fill" id="heroFill"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ SECTION A — FUNCTIONAL ═══ -->
+  <div class="section" id="sA">
+    <div class="section-header" onclick="toggleSec('sA')">
+      <span class="section-cat">A — Functional</span>
+      <div class="section-title-wrap">
+        <div class="section-title">Functional Checks</div>
+        <div class="section-sub">Text · Buttons · Graphics · Languages</div>
+      </div>
+      <div class="section-count" id="count-sA">— / 4</div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="section-body">
+
+      <!-- 01 -->
+      <div class="item" id="item-sA-1">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sA')"><select class="status-select" onchange="sel(this,'sA')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">01</span><span class="item-title">Is the text correctly formatted?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-both">🇪🇺 GDPR + 🇺🇸 US</span></div>
+            <div class="item-desc">Verify all text in the banner and preference centre renders correctly — no broken characters, no raw HTML tags visible, correct fonts, proper line breaks.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sA-1')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sA-1"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue or observation…" oninput="saveAnn('item-sA-1')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sA-1')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sA-1')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sA-1"></div></div></div></div>
+      </div>
+
+      <!-- 02 -->
+      <div class="item" id="item-sA-2">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sA')"><select class="status-select" onchange="sel(this,'sA')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">02</span><span class="item-title">Are all buttons functional?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-both">🇪🇺 GDPR + 🇺🇸 US</span></div>
+            <div class="item-desc">Test every CTA: Accept, Decline/Opt-out, Save preferences, Manage preferences. Each must trigger the correct consent action and close or update the banner as expected.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sA-2')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sA-2"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue or observation…" oninput="saveAnn('item-sA-2')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sA-2')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sA-2')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sA-2"></div></div></div></div>
+      </div>
+
+      <!-- 03 -->
+      <div class="item" id="item-sA-3">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sA')"><select class="status-select" onchange="sel(this,'sA')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">03</span><span class="item-title">Are graphics and visuals functional?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-both">🇪🇺 GDPR + 🇺🇸 US</span></div>
+            <div class="item-desc">Check that logos, icons, and custom visual elements inside the banner load correctly — no broken images, no misaligned elements.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sA-3')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sA-3"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue or observation…" oninput="saveAnn('item-sA-3')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sA-3')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sA-3')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sA-3"></div></div></div></div>
+      </div>
+
+      <!-- 04 -->
+      <div class="item" id="item-sA-4">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sA')"><select class="status-select" onchange="sel(this,'sA')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">04</span><span class="item-title">Is the notice translated into all selected languages?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR</span><span class="reg-badge rb-us">🇺🇸 US – English primary</span></div>
+            <div class="item-desc">For US deployments, English is the primary language. If the audience includes Spanish-speaking Californians, a Spanish version is recommended. Verify all configured languages render without missing strings.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/customize-the-language-of-your-consent-notice" target="_blank">📖 Customize language</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sA-4')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sA-4"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue or observation…" oninput="saveAnn('item-sA-4')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sA-4')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sA-4')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sA-4"></div></div></div></div>
+      </div>
+
+    </div>
+    <div class="section-notes"><div class="notes-lbl">📝 Section notes</div><textarea placeholder="General observations for Functional Checks…" oninput="save()"></textarea></div>
+  </div>
+
+  <!-- ═══ SECTION B — TECHNICAL ═══ -->
+  <div class="section" id="sB">
+    <div class="section-header" onclick="toggleSec('sB')">
+      <span class="section-cat">B — Technical</span>
+      <div class="section-title-wrap">
+        <div class="section-title">Technical Checks</div>
+        <div class="section-sub">Tag blocking · Network calls · TMS · GCM · IAB TCF · IAB GPP</div>
+      </div>
+      <div class="section-count" id="count-sB">— / 8</div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="section-body">
+
+      <!-- 05 -->
+      <div class="item" id="item-sB-5">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">05</span><span class="item-title">Are vendors properly conditioned to prevent cookie drops before consent is given?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR – must block before consent</span><span class="reg-badge rb-us">🇺🇸 US – Opt-out model</span></div>
+            <div class="item-desc"><strong>US specificity:</strong> Under US state laws, trackers may fire by default — the user must be able to opt out at any time. If the client uses an opt-in model, tags must be blocked before consent, same as GDPR.<br><br>Use DevTools → Network tab on page load to audit which cookies/trackers fire. Attach screenshots to the report.</div>
+            <div class="callout callout-amber">⚠️ If non-essential tags fire before consent under an opt-in configuration, this is a critical issue. Capture and attach screenshots as evidence.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/block-your-tags-with-our-google-tag-manager-integration-new-flow" target="_blank">🏷 Block via GTM</a><a class="doc-link" href="https://developers.didomi.io/cmp/web-sdk/third-parties/custom-integrations/no-tag-manager" target="_blank">🏷 Block without GTM</a><a class="doc-link" href="https://support.didomi.io/how-to-check-the-implementation" target="_blank">🔍 How to check</a><a class="doc-link" href="https://support.didomi.io/create-a-required-purpose-for-necessary-cookies-1" target="_blank">🍪 Required purposes</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-5')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-5"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. Google Analytics fires before consent — see screenshot…" oninput="saveAnn('item-sB-5')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-5')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-5')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sB-5"></div></div></div></div>
+      </div>
+
+      <!-- 06 -->
+      <div class="item" id="item-sB-6">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">06</span><span class="item-title">When consent is not given, are network calls properly blocked?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR – blocked before consent</span><span class="reg-badge rb-us">🇺🇸 US – Opt-out model</span></div>
+            <div class="item-desc">In the Network tab verify: after opt-out, third-party ad/analytics calls cease; after consent/no-opt-out, relevant calls are visible. Only Didomi, essential, and consent-exempt calls should be active in the opted-out state.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/how-to-check-the-implementation" target="_blank">🔍 Check network calls</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-6')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-6"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe network call behaviour observed…" oninput="saveAnn('item-sB-6')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-6')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-6')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sB-6"></div></div></div></div>
+      </div>
+
+      <!-- 07 -->
+      <div class="item" id="item-sB-7">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">07</span><span class="item-title">If a tag manager is used, is the TMS integration selected in the Didomi console?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR</span><span class="reg-badge rb-us">🇺🇸 US – Opt-out model</span></div>
+            <div class="item-desc">In the Didomi console → Integrations, confirm the client's Tag Management System (GTM, Tealium, etc.) is selected and configured. Without this, consent signals may not correctly control tag firing.</div>
+            <div class="callout callout-blue">💡 Network calls must only relate to Didomi itself, consent-exempt cookies, or essential website cookies.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-7')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-7"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. GTM integration not selected in console…" oninput="saveAnn('item-sB-7')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-7')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-7')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span><span class="uz-hint">click or drag & drop</span></div></div><div class="thumb-row" id="thumbs-item-sB-7"></div></div></div></div>
+      </div>
+
+      <!-- 08 -->
+      <div class="item" id="item-sB-8">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">08</span><span class="item-title">If Google Consent Mode is needed, has it been enabled?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR</span><span class="reg-badge rb-na">🇺🇸 US – Not applicable</span></div>
+            <div class="item-desc">Google Consent Mode v2 is primarily a GDPR requirement. For US-only deployments this is generally not applicable. If the client runs combined GDPR + US, verify GCM v2 is correctly configured.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/enable-google-consent-mode-with-didomi-new-flow" target="_blank">📖 Configure GCM</a><a class="doc-link" href="https://support.didomi.io/how-to-check-your-google-consent-mode-v2-advanced-implementation-on-web" target="_blank">🔍 Check GCM v2</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-8')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-8"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue…" oninput="saveAnn('item-sB-8')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-8')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-8')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sB-8"></div></div></div></div>
+      </div>
+
+      <!-- 09 -->
+      <div class="item" id="item-sB-9">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">09</span><span class="item-title">If IAB TCF integration is needed, has it been activated?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR only</span></div>
+            <div class="item-desc">The IAB TCF allows sharing user consent status with all IAB-registered vendors. This is primarily a European framework — for US-only clients it is generally not applicable.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/user-consent-management-using-didomi" target="_blank">📖 IAB TCF Integration</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-9')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-9"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue…" oninput="saveAnn('item-sB-9')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-9')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-9')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sB-9"></div></div></div></div>
+      </div>
+
+      <!-- 10 -->
+      <div class="item" id="item-sB-10">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">10</span><span class="item-title">If GPP integration is needed, has it been activated and are all signals correctly mapped?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-us">🇺🇸 US Multi-state</span></div>
+            <div class="item-desc">The IAB GPP framework standardises how consent and privacy signals are communicated across US state regulations. Verify it is enabled and that purposes are correctly mapped to the relevant GPP string fields for each active state.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/what-is-iab-gpp-framework" target="_blank">📖 What is IAB GPP?</a><a class="doc-link" href="https://support.didomi.io/enable-gpp" target="_blank">⚙️ Enable GPP</a><a class="doc-link" href="https://support.didomi.io/configure-gpp-fields-based-on-user-consent" target="_blank">🗺 Map purposes</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-10')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-10"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue…" oninput="saveAnn('item-sB-10')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-10')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-10')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sB-10"></div></div></div></div>
+      </div>
+
+      <!-- 11 -->
+      <div class="item" id="item-sB-11">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">11</span><span class="item-title">If a Decline/Reject action is required, is it present on the banner?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-eu">🇪🇺 GDPR</span></div>
+            <div class="item-desc">Some EU DPAs (France, Germany, etc.) require a "Decline all" button at the first level of the banner. For US deployments, this is typically replaced by the opt-out mechanism.</div>
+            <div class="links-row"><a class="doc-link" href="https://support.didomi.io/add-the-option-to-disagree-in-your-consent-notice-new-flow" target="_blank">📖 Add disagree option</a><a class="doc-link" href="https://blog.didomi.io/en/tag/country-focus" target="_blank">🌍 Regulations by country</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-11')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-11"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="Describe the issue…" oninput="saveAnn('item-sB-11')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-11')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-11')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sB-11"></div></div></div></div>
+      </div>
+
+      <!-- 12 ★ KEY US ★ -->
+      <div class="item" id="item-sB-12">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sB')"><select class="status-select" onchange="sel(this,'sB')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">12</span><span class="item-title">Is the "Do Not Sell or Share My Personal Information" footer link present, correctly labelled, and accompanied by the required icon?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-us">🇺🇸 California – CCPA / CPRA</span></div>
+            <div class="item-desc">California users must have a clearly visible footer link to opt out of the sale and sharing of their personal information.</div>
+            <div class="callout callout-blue"><strong>✅ The 3 CPRA-accepted footer link labels</strong><br><br>&nbsp;&nbsp;<strong>1. "Do Not Sell or Share My Personal Information"</strong> — No icon required.<br><br>&nbsp;&nbsp;<strong>2. "Your Privacy Choices"</strong> — ⚠️ <em>The official California privacy icon must appear directly adjacent.</em><br><br>&nbsp;&nbsp;<strong>3. "Your California Privacy Choices"</strong> — ⚠️ <em>The official California privacy icon must appear directly adjacent.</em></div>
+            <div class="callout callout-amber" style="margin-top:9px;">⚠️ <strong>Pat's note:</strong> If the client uses label #2 or #3, the California-approved privacy icon <strong>must</strong> appear adjacent to the link. Missing icon = non-compliance.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sB-12')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sB-12"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. Footer uses 'Your Privacy Choices' but the California icon is missing…" oninput="saveAnn('item-sB-12')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sB-12')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sB-12')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sB-12"></div></div></div></div>
+      </div>
+
+    </div>
+    <div class="section-notes"><div class="notes-lbl">📝 Section notes</div><textarea placeholder="General observations for Technical Checks…" oninput="save()"></textarea></div>
+  </div>
+
+  <!-- ═══ SECTION C — GPC ═══ -->
+  <div class="section" id="sC">
+    <div class="section-header" onclick="toggleSec('sC')">
+      <span class="section-cat amber">C — GPC</span>
+      <div class="section-title-wrap">
+        <div class="section-title">GPC – Global Privacy Control <span style="font-size:10.5px;font-weight:500;color:var(--amber);font-family:var(--mono);margin-left:6px;">PAT'S ADDITION</span></div>
+        <div class="section-sub">Signal detection · Automated opt-out · California notification</div>
+      </div>
+      <div class="section-count" id="count-sC">— / 3</div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="section-body">
+
+      <!-- GPC A -->
+      <div class="item" id="item-sC-G1">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sC')"><select class="status-select" onchange="sel(this,'sC')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">GPC·A</span><span class="item-title">Is the GPC signal detected and does it trigger an automated opt-out?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-us">🇺🇸 US – 12 states require GPC</span></div>
+            <div class="item-desc"><strong>12 US states</strong> legally require businesses to respect GPC (CA, CO, CT, TX, MT, OR…).<br><br><strong>How to test:</strong> Use Brave or DuckDuckGo browser with GPC enabled. Verify the Didomi SDK detects the signal and automatically applies opt-out — no manual action required from the user.</div>
+            <div class="callout callout-red">❌ If GPC is not honoured, this is a legal violation in all 12 mandating states. Flag as critical.</div>
+            <div class="links-row"><a class="doc-link" href="https://docs.sourcepoint.com/hc/en-us/articles/8357018608019-Global-Privacy-Control-GPC#h_01JVPSG5G8XJ8W64QMCQG3XRGF" target="_blank">📋 States requiring GPC</a></div>
+            <button class="ann-btn" onclick="toggleAnn('item-sC-G1')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sC-G1"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. GPC detected but opt-out not applied automatically…" oninput="saveAnn('item-sC-G1')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sC-G1')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sC-G1')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sC-G1"></div></div></div></div>
+      </div>
+
+      <!-- GPC B -->
+      <div class="item" id="item-sC-G2">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sC')"><select class="status-select" onchange="sel(this,'sC')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">GPC·B</span><span class="item-title">For California users: is the user notified that their GPC signal has been detected?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-us">🇺🇸 California (CPRA)</span></div>
+            <div class="item-desc">California's CPRA requires the business to <strong>inform the user</strong> that their GPC signal was detected and their opt-out preference is being honoured. This must be visible — in the banner, preference centre, or dedicated notice.</div>
+            <div class="callout callout-amber">⚠️ <strong>Pat's note:</strong> Verify message is present and visible for users sending a GPC signal from a California IP.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sC-G2')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sC-G2"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. No notification displayed when GPC active from CA IP…" oninput="saveAnn('item-sC-G2')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sC-G2')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sC-G2')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sC-G2"></div></div></div></div>
+      </div>
+
+      <!-- GPC C -->
+      <div class="item" id="item-sC-G3">
+        <div class="item-main">
+          <div class="check-col"><input type="checkbox" onchange="chk(this,'sC')"><select class="status-select" onchange="sel(this,'sC')"><option value="">—</option><option value="ok">✅ OK</option><option value="ko">❌ KO</option><option value="na">N/A</option></select></div>
+          <div class="item-body">
+            <div class="item-top"><span class="item-num">GPC·C</span><span class="item-title">After GPC opt-out, are all non-essential third-party tags and network calls halted?</span></div>
+            <div class="regs-row"><span class="reg-badge rb-us">🇺🇸 US – 12 states</span></div>
+            <div class="item-desc">Post-GPC detection, the same tag-blocking verification as items #05 and #06 applies. Confirm no ad networks, analytics trackers, or data brokers receive calls implying a "sale" or "sharing" of personal data.</div>
+            <div class="callout callout-blue">💡 Load the page in Brave with GPC enabled. Check the Network tab immediately for third-party calls that should be blocked.</div>
+            <button class="ann-btn" onclick="toggleAnn('item-sC-G3')">📝 Add note / screenshot</button>
+          </div>
+        </div>
+        <div class="item-annotation" id="ann-item-sC-G3"><div class="ann-grid"><div style="grid-column:1/-1"><div class="ann-label">📝 Note</div><textarea class="ann-textarea" placeholder="e.g. Meta Pixel still firing post-GPC opt-out…" oninput="saveAnn('item-sC-G3')"></textarea></div><div><div class="ann-label">📸 Screenshots</div><div class="upload-zone" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddrop(event,'item-sC-G3')"><input type="file" accept="image/*" multiple onchange="hfiles(this,'item-sC-G3')"><div class="uz-inner"><div class="uz-icon">🖼</div><span class="uz-text">Upload screenshots</span></div></div><div class="thumb-row" id="thumbs-item-sC-G3"></div></div></div></div>
+      </div>
+
+    </div>
+    <div class="section-notes"><div class="notes-lbl">📝 Section notes</div><textarea placeholder="General GPC-related observations…" oninput="save()"></textarea></div>
+  </div>
+
+</main>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLB()">
+  <button class="lb-close" onclick="closeLB()">✕</button>
+  <img id="lbImg" src="" alt="">
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   URL PARAMS — auto-fill fields from URL
+   Usage:
+   ?client=Acme+Corp&url=https://acme.com
+   &reviewer=Pat&date=2026-02-26
+═══════════════════════════════════════════ */
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  if(p.get('client'))  document.getElementById('fClient').value = p.get('client');
+  if(p.get('url'))     document.getElementById('fURL').value    = p.get('url');
+  if(p.get('reviewer'))document.getElementById('fDoneBy').value = p.get('reviewer');
+  if(p.get('date'))    document.getElementById('fDate').value   = p.get('date');
+
+  // Detect if running inside an iFrame (Planhat portal)
+  try {
+    if(window.self !== window.top){
+      const notice = document.getElementById('embedNotice');
+      if(notice) notice.style.display = 'block';
+      const fullLink = document.getElementById('fullLink');
+      if(fullLink) fullLink.href = window.location.href;
+    }
+  } catch(e){}
+})();
+
+/* ═══════════════════════════════════════════
+   STORAGE KEY — scoped per client so each
+   account has its own saved state
+═══════════════════════════════════════════ */
+function storageKey(){
+  const c = document.getElementById('fClient').value.trim();
+  return 'didomi_us_' + (c ? btoa(encodeURIComponent(c)).slice(0,16) : 'default');
+}
+
+const SECS = ['sA','sB','sC'];
+const shots = {};
+
+/* ── STATUS ── */
+function chk(cb,sid){
+  const item=cb.closest('.item'),sel=item.querySelector('.status-select');
+  item.classList.remove('checked','flagged','na-item');
+  if(cb.checked){item.classList.add('checked');sel.value='ok';}else sel.value='';
+  upd();save();
+}
+function sel(s,sid){
+  const item=s.closest('.item'),cb=item.querySelector('input[type="checkbox"]');
+  item.classList.remove('checked','flagged','na-item');cb.checked=false;
+  if(s.value==='ok'){item.classList.add('checked');cb.checked=true;}
+  if(s.value==='ko')item.classList.add('flagged');
+  if(s.value==='na')item.classList.add('na-item');
+  upd();save();
+}
+
+/* ── STATS ── */
+function upd(){
+  let tOK=0,tKO=0,tNA=0,tP=0,tA=0;
+  SECS.forEach(sid=>{
+    const items=document.getElementById(sid).querySelectorAll('.item');
+    let ok=0,ko=0,na=0,p=0;
+    items.forEach(i=>{const v=i.querySelector('.status-select').value;if(v==='ok')ok++;else if(v==='ko')ko++;else if(v==='na')na++;else p++;});
+    const a=items.length-na;
+    tOK+=ok;tKO+=ko;tNA+=na;tP+=p;tA+=a;
+    document.getElementById('count-'+sid).textContent=ok+' / '+a;
+  });
+  document.getElementById('statOK').textContent=tOK;
+  document.getElementById('statKO').textContent=tKO;
+  document.getElementById('statNA').textContent=tNA;
+  document.getElementById('statPend').textContent=tP;
+  const pct=tA>0?Math.round(tOK/tA*100):0;
+  document.getElementById('statPct').textContent=pct+'%';
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=tOK+' / '+tA+' validated';
+  document.getElementById('heroFill').style.width=pct+'%';
+}
+
+function toggleSec(id){document.getElementById(id).classList.toggle('collapsed');}
+
+/* ── ANNOTATION ── */
+function toggleAnn(id){
+  const panel=document.getElementById('ann-'+id);
+  const btn=document.querySelector('#'+id+' .ann-btn');
+  const open=panel.classList.toggle('open');
+  btn.textContent=open?'🔼 Hide note / screenshot':'📝 Add note / screenshot';
+  refreshBtn(id);
+}
+function hasContent(id){
+  const panel=document.getElementById('ann-'+id);if(!panel)return false;
+  const ta=panel.querySelector('textarea');
+  return(ta&&ta.value.trim().length>0)||((shots[id]||[]).filter(Boolean).length>0);
+}
+function refreshBtn(id){
+  const btn=document.querySelector('#'+id+' .ann-btn');if(!btn)return;
+  btn.classList.toggle('active',hasContent(id));
+}
+function saveAnn(id){refreshBtn(id);save();}
+
+/* ── FILES ── */
+function hfiles(input,id){Array.from(input.files).forEach(f=>rfile(f,id));input.value='';}
+function ddrop(e,id){e.preventDefault();e.currentTarget.classList.remove('over');Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(f=>rfile(f,id));}
+function dov(e){e.preventDefault();e.currentTarget.classList.add('over');}
+function dlv(e){e.currentTarget.classList.remove('over');}
+function rfile(file,id){
+  const r=new FileReader();
+  r.onload=e=>{
+    if(!shots[id])shots[id]=[];
+    const idx=shots[id].push(e.target.result)-1;
+    renderThumb(id,idx,e.target.result);refreshBtn(id);save();
+  };r.readAsDataURL(file);
+}
+function renderThumb(id,idx,src){
+  const c=document.getElementById('thumbs-'+id);
+  const t=document.createElement('div');t.className='thumb';t.dataset.idx=idx;
+  t.innerHTML=`<img src="${src}" onclick="openLB('${src}')"><button class="thumb-del" onclick="delThumb('${id}',${idx},this.closest('.thumb'))">✕</button>`;
+  c.appendChild(t);
+}
+function delThumb(id,idx,el){shots[id][idx]=null;el.remove();refreshBtn(id);save();}
+function openLB(src){document.getElementById('lbImg').src=src;document.getElementById('lightbox').classList.add('open');}
+function closeLB(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lbImg').src='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();});
+
+/* ── ACTIONS ── */
+function copyLink(){
+  // Build shareable URL with current field values embedded
+  const u=new URL(window.location.href.split('?')[0]);
+  const c=document.getElementById('fClient').value;
+  const url=document.getElementById('fURL').value;
+  const rev=document.getElementById('fDoneBy').value;
+  const dt=document.getElementById('fDate').value;
+  if(c)u.searchParams.set('client',c);
+  if(url)u.searchParams.set('url',url);
+  if(rev)u.searchParams.set('reviewer',rev);
+  if(dt)u.searchParams.set('date',dt);
+  navigator.clipboard.writeText(u.toString())
+    .then(()=>toast('🔗 Link copied! Paste into Planhat portal.'))
+    .catch(()=>prompt('Copy this Planhat link:',u.toString()));
+}
+function markAllOK(){
+  document.querySelectorAll('.item:not(.na-item)').forEach(item=>{
+    item.querySelector('.status-select').value='ok';
+    item.querySelector('input[type="checkbox"]').checked=true;
+    item.classList.add('checked');item.classList.remove('flagged');
+  });upd();save();toast('✅ All items marked as OK!');
+}
+function resetAll(){
+  if(!confirm('Reset all validations, notes and screenshots?'))return;
+  document.querySelectorAll('.item').forEach(item=>{
+    item.classList.remove('checked','flagged','na-item');
+    item.querySelector('input[type="checkbox"]').checked=false;
+    item.querySelector('.status-select').value='';
+  });
+  document.querySelectorAll('.item-annotation').forEach(p=>p.classList.remove('open'));
+  document.querySelectorAll('.item-annotation textarea,.section-notes textarea').forEach(t=>t.value='');
+  document.querySelectorAll('.ann-btn').forEach(b=>{b.textContent='📝 Add note / screenshot';b.classList.remove('active');});
+  document.querySelectorAll('[id^="thumbs-"]').forEach(c=>c.innerHTML='');
+  Object.keys(shots).forEach(k=>delete shots[k]);
+  try{localStorage.removeItem(storageKey());}catch(e){}
+  upd();toast('↺ Checklist reset.');
+}
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+/* ── SAVE / LOAD — keyed per client ── */
+function save(){
+  const state={
+    fields:{client:document.getElementById('fClient').value,url:document.getElementById('fURL').value,doneBy:document.getElementById('fDoneBy').value,date:document.getElementById('fDate').value},
+    items:{},ann:{},sNotes:[],shots:{}
+  };
+  document.querySelectorAll('.item').forEach(item=>{
+    if(!item.id)return;
+    state.items[item.id]=item.querySelector('.status-select').value;
+    const panel=document.getElementById('ann-'+item.id);
+    if(panel){const ta=panel.querySelector('textarea');state.ann[item.id]={text:ta?ta.value:'',open:panel.classList.contains('open')};}
+  });
+  document.querySelectorAll('.section-notes textarea').forEach((t,i)=>{state.sNotes[i]=t.value;});
+  Object.entries(shots).forEach(([id,imgs])=>{state.shots[id]=imgs.filter(Boolean);});
+  try{localStorage.setItem(storageKey(),JSON.stringify(state));}
+  catch(e){toast('⚠️ Storage full — try removing some screenshots.');}
+}
+
+function load(){
+  try{
+    const raw=localStorage.getItem(storageKey());if(!raw)return;
+    const s=JSON.parse(raw);
+    if(s.fields){const m={client:'fClient',url:'fURL',doneBy:'fDoneBy',date:'fDate'};Object.entries(m).forEach(([k,id])=>{if(s.fields[k]&&!document.getElementById(id).value)document.getElementById(id).value=s.fields[k];});}
+    if(s.items){Object.entries(s.items).forEach(([id,val])=>{const item=document.getElementById(id);if(!item||!val)return;item.querySelector('.status-select').value=val;item.classList.remove('checked','flagged','na-item');item.querySelector('input[type="checkbox"]').checked=false;if(val==='ok'){item.classList.add('checked');item.querySelector('input').checked=true;}if(val==='ko')item.classList.add('flagged');if(val==='na')item.classList.add('na-item');});}
+    if(s.ann){Object.entries(s.ann).forEach(([id,a])=>{const panel=document.getElementById('ann-'+id);if(!panel)return;const ta=panel.querySelector('textarea');if(ta&&a.text)ta.value=a.text;if(a.open){panel.classList.add('open');const btn=document.querySelector('#'+id+' .ann-btn');if(btn)btn.textContent='🔼 Hide note / screenshot';}});}
+    if(s.sNotes){document.querySelectorAll('.section-notes textarea').forEach((t,i)=>{if(s.sNotes[i])t.value=s.sNotes[i];});}
+    if(s.shots){Object.entries(s.shots).forEach(([id,imgs])=>{shots[id]=[];imgs.forEach(src=>{if(src){const idx=shots[id].push(src)-1;renderThumb(id,idx,src);}});refreshBtn(id);});}
+  }catch(e){console.warn('Load error',e);}
+}
+
+/* ── INIT ── */
+if(!document.getElementById('fDate').value)
+  document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
+document.getElementById('toolbarDate').textContent=
+  new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+['fClient','fURL','fDoneBy','fDate'].forEach(id=>
+  document.getElementById(id).addEventListener('input',save));
+load();upd();
+</script>
+</body>
+</html>
